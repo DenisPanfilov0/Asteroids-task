@@ -1,7 +1,10 @@
 using Code.App.Services;
-using Code.App.Services.Enemy;
 using UnityEngine;
 using Zenject;
+using System.Collections.Generic;
+using Code.App.Behaviours.Player;
+using Code.App.Services.Interfaces;
+using Code.App.Services.Models;
 
 namespace Code.App.Behaviours.Enemy
 {
@@ -13,62 +16,128 @@ namespace Code.App.Behaviours.Enemy
         [SerializeField] private Transform _enemyContainer;
 
         private IEnemySpawnService _enemySpawnService;
-        private IEnemyMovementService _enemyMovementService;
         private ICollisionService _collisionService;
+        private PlayerShip _playerShip;
+        private Dictionary<int, GameObject> _activeEnemies;
 
         [Inject]
-        public void Construct(IEnemySpawnService enemySpawnService, IEnemyMovementService enemyMovementService,
-            ICollisionService collisionService)
+        public void Construct(IEnemySpawnService enemySpawnService, ICollisionService collisionService, PlayerShip playerShip)
         {
-            _collisionService = collisionService;
             _enemySpawnService = enemySpawnService;
-            _enemyMovementService = enemyMovementService;
+            _collisionService = collisionService;
+            _playerShip = playerShip;
+            _activeEnemies = new Dictionary<int, GameObject>();
         }
 
         private void Start()
         {
             _enemySpawnService.OnSpawnAsteroid += SpawnAsteroid;
             _enemySpawnService.OnSpawnFlyingSaucer += SpawnFlyingSaucer;
+            _enemySpawnService.OnEnemyRemoved += HandleEnemyRemoved;
         }
 
         private void OnDestroy()
         {
-            _enemySpawnService.OnSpawnAsteroid -= SpawnAsteroid;
-            _enemySpawnService.OnSpawnFlyingSaucer -= SpawnFlyingSaucer;
+            if (_enemySpawnService != null)
+            {
+                _enemySpawnService.OnSpawnAsteroid -= SpawnAsteroid;
+                _enemySpawnService.OnSpawnFlyingSaucer -= SpawnFlyingSaucer;
+                _enemySpawnService.OnEnemyRemoved -= HandleEnemyRemoved;
+            }
         }
 
         private void SpawnAsteroid(int id)
         {
-            EnemyData data = _enemyMovementService.GetEnemyData(id);
-            bool isSmallAsteroid = data != null && data.IsSmallAsteroid;
-            SpawnEnemy(isSmallAsteroid ? _smallAsteroidPrefab : _asteroidPrefab, id, true, isSmallAsteroid);
+            EnemyData data = _enemySpawnService.GetEnemyData(id);
+            if (data == null)
+            {
+                return;
+            }
+            bool isSmallAsteroid = data.IsSmallAsteroid;
+            GameObject prefab = isSmallAsteroid ? _smallAsteroidPrefab : _asteroidPrefab;
+            if (prefab == null)
+            {
+                return;
+            }
+
+            Vector2 spawnPosition = data.Position;
+            if (isSmallAsteroid && data.ParentAsteroidId != -1)
+            {
+                if (_activeEnemies.TryGetValue(data.ParentAsteroidId, out GameObject parentAsteroid) && parentAsteroid != null)
+                {
+                    spawnPosition = parentAsteroid.transform.position;
+                }
+            }
+
+            SpawnEnemy(prefab, id, true, isSmallAsteroid, spawnPosition);
         }
 
         private void SpawnFlyingSaucer(int id)
         {
-            SpawnEnemy(_ufoEnemyPrefab, id, false, false);
+            if (_ufoEnemyPrefab == null)
+            {
+                return;
+            }
+            EnemyData data = _enemySpawnService.GetEnemyData(id);
+            if (data == null)
+            {
+                return;
+            }
+            SpawnEnemy(_ufoEnemyPrefab, id, false, false, data.Position);
         }
 
-        private void SpawnEnemy(GameObject prefab, int id, bool isAsteroid, bool isSmallAsteroid)
+        private void SpawnEnemy(GameObject prefab, int id, bool isAsteroid, bool isSmallAsteroid, Vector2 position)
         {
-            EnemyData data = _enemyMovementService.GetEnemyData(id);
-            
+            EnemyData data = _enemySpawnService.GetEnemyData(id);
             if (data == null)
             {
                 return;
             }
 
-            GameObject enemy = Instantiate(prefab, new Vector3(data.Position.x, data.Position.y, 0f), Quaternion.identity, _enemyContainer);
-            
+            GameObject enemy = Instantiate(prefab, new Vector3(position.x, position.y, 0f), Quaternion.identity, _enemyContainer);
+
             if (isAsteroid)
             {
                 var asteroid = enemy.GetComponent<Asteroid>();
-                asteroid.Initialize(id, _enemyMovementService, _collisionService);
+                if (asteroid == null)
+                {
+                    Destroy(enemy);
+                    return;
+                }
+                asteroid.Initialize(id, position, data.Direction, data.Speed, isSmallAsteroid, _collisionService);
             }
             else
             {
                 var saucer = enemy.GetComponent<UfoEnemy>();
-                saucer.Initialize(id, _enemyMovementService, _collisionService);
+                if (saucer == null)
+                {
+                    Destroy(enemy);
+                    return;
+                }
+                saucer.Initialize(id, position, data.Direction, data.Speed, _playerShip, _collisionService);
+            }
+
+            if (_activeEnemies.ContainsKey(id))
+            {
+                if (_activeEnemies[id] != null)
+                {
+                    Destroy(_activeEnemies[id]);
+                }
+                _activeEnemies.Remove(id);
+            }
+
+            _activeEnemies[id] = enemy;
+        }
+
+        private void HandleEnemyRemoved(int id, bool isAsteroid)
+        {
+            if (_activeEnemies.TryGetValue(id, out GameObject enemy))
+            {
+                if (enemy != null)
+                {
+                    Destroy(enemy);
+                }
+                _activeEnemies.Remove(id);
             }
         }
     }
