@@ -1,7 +1,8 @@
-using System;
 using Code.App.Extensions;
+using Code.App.Models;
 using Code.App.Services.Interfaces;
 using Code.App.Services.Models;
+using R3;
 using UnityEngine;
 using Zenject;
 
@@ -10,94 +11,96 @@ namespace Code.App.Behaviours.Player
     [RequireComponent(typeof(Rigidbody2D))]
     public class PlayerShip : MonoBehaviour
     {
+        private const float MAX_SPEED = 100f;
+        private const float ACCELERATION = 50f;
+        private const float DECELERATION = 40f;
+        private const float ROTATION_SPEED = 75f;
+        
         [SerializeField] private GameObject _bulletPrefab;
         [SerializeField] private GameObject _laserPrefab;
-        [SerializeField] private Transform _bulletContainer;
         [SerializeField] private Transform _bulletSpawnPoint;
 
         private Rigidbody2D _rb;
         private IBulletService _bulletService;
-        private float _screenWidth;
-        private float _screenHeight;
-        
+        private IPlayerShipModel _model;
+        private Camera _mainCamera;
         private Bounds _worldBounds;
         private Vector2 _startPosition;
-
-        private const float MaxSpeed = 100f;
-        private const float Acceleration = 50f;
-        private const float Deceleration = 40f;
-        private const float RotationSpeed = 75f;
-
-        public event Action<Vector2> OnPositionChanged;
-        public event Action<float> OnRotationChanged;
-        public event Action<float> OnSpeedChanged;
+        private CompositeDisposable _disposable = new();
+        private bool _isPause;
 
         [Inject]
-        public void Construct(IBulletService bulletService)
+        public void Construct(
+            IBulletService bulletService,
+            IPlayerShipModel model,
+            Camera mainCamera)
         {
             _bulletService = bulletService;
-        }
-
-        private void Awake()
-        {
-            _rb = GetComponent<Rigidbody2D>();
-            _rb.gravityScale = 0f;
-            _rb.linearDamping = 0f;
-            _rb.angularDamping = 0f;
-            _rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+            _model = model;
+            _mainCamera = mainCamera;
         }
 
         private void Start()
         {
-            _worldBounds = Camera.main.GetOrthographicBounds();
+            _rb = GetComponent<Rigidbody2D>();
+            _worldBounds = CameraExtensions.GetOrthographicBounds(_mainCamera);
             _startPosition = _worldBounds.center;
             transform.position = _startPosition;
             _rb.position = _startPosition;
 
+            _bulletService.SetPlayerShip(_model);
             _bulletService.OnSpawnBullet += HandleSpawnBullet;
             _bulletService.OnSpawnLaser += HandleSpawnLaser;
 
-            OnPositionChanged?.Invoke(transform.position);
-            OnRotationChanged?.Invoke(transform.eulerAngles.z);
-            OnSpeedChanged?.Invoke(0f);
+            _model.SetPosition(_rb.position);
+            _model.SetRotation(_rb.rotation);
+            _model.SetSpeed(0f);
+            
+            _model.IsPaused.Subscribe(GamePause).AddTo(_disposable);
+        }
+
+        private void Update()
+        {
+            if (_isPause) return;
+            HandleInput();
+            WrapAroundScreen();
+            NotifyModel();
+        }
+
+        private void GamePause(bool state)
+        {
+            _isPause = state;
         }
 
         private void OnDestroy()
         {
             _bulletService.OnSpawnBullet -= HandleSpawnBullet;
             _bulletService.OnSpawnLaser -= HandleSpawnLaser;
-        }
 
-        private void Update()
-        {
-            HandleInput();
-            WrapAroundScreen();
-            NotifyChanges();
+            _isPause = false;
+            
+            _disposable.Dispose();
         }
 
         private void HandleInput()
         {
             var deltaTime = Time.deltaTime;
             float rotationInput = 0f;
+            
             if (Input.GetKey(KeyCode.LeftArrow))
-                rotationInput = RotationSpeed;
+                rotationInput = ROTATION_SPEED;
             else if (Input.GetKey(KeyCode.RightArrow))
-                rotationInput = -RotationSpeed;
+                rotationInput = -ROTATION_SPEED;
 
             _rb.angularVelocity = rotationInput;
 
-            float targetSpeed = Input.GetKey(KeyCode.UpArrow) ? MaxSpeed : 0f;
+            float targetSpeed = Input.GetKey(KeyCode.UpArrow) ? MAX_SPEED : 0f;
             float currentSpeed = _rb.linearVelocity.magnitude;
-            float acceleration = targetSpeed > currentSpeed ? Acceleration : Deceleration;
+            float acceleration = targetSpeed > currentSpeed ? ACCELERATION : DECELERATION;
             float newSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, acceleration * deltaTime);
 
             Vector2 direction = transform.up;
             _rb.linearVelocity = direction * newSpeed;
-
-            if (Input.GetKey(KeyCode.Q))
-                _bulletService.Tick();
-            if (Input.GetKeyDown(KeyCode.E))
-                _bulletService.Tick();
         }
 
         private void WrapAroundScreen()
@@ -117,11 +120,11 @@ namespace Code.App.Behaviours.Player
             _rb.position = pos;
         }
 
-        private void NotifyChanges()
+        private void NotifyModel()
         {
-            OnPositionChanged?.Invoke(_rb.position);
-            OnRotationChanged?.Invoke(_rb.rotation);
-            OnSpeedChanged?.Invoke(_rb.linearVelocity.magnitude);
+            _model.SetPosition(_rb.position);
+            _model.SetRotation(_rb.rotation);
+            _model.SetSpeed(_rb.linearVelocity.magnitude);
         }
 
         private void HandleSpawnBullet(int id, BulletData bulletData)
@@ -129,7 +132,7 @@ namespace Code.App.Behaviours.Player
             Vector2 spawnPosition = _bulletSpawnPoint.position;
             bulletData.Position = spawnPosition;
 
-            GameObject bulletObj = Instantiate(_bulletPrefab, spawnPosition, transform.rotation, _bulletContainer);
+            GameObject bulletObj = Instantiate(_bulletPrefab, spawnPosition, transform.rotation);
             Bullet bullet = bulletObj.GetComponent<Bullet>();
             bullet.Initialize(id, bulletData, _bulletService);
         }
@@ -143,23 +146,5 @@ namespace Code.App.Behaviours.Player
             Laser laser = laserObj.GetComponent<Laser>();
             laser.Initialize(id, _bulletService);
         }
-
-        public void Reset()
-        {
-            _rb.position = _startPosition;
-            _rb.rotation = 0f;
-            _rb.linearVelocity = Vector2.zero;
-            _rb.angularVelocity = 0f;
-            transform.position = _startPosition;
-            transform.rotation = Quaternion.identity;
-
-            OnPositionChanged?.Invoke(_rb.position);
-            OnRotationChanged?.Invoke(_rb.rotation);
-            OnSpeedChanged?.Invoke(0f);
-        }
-
-        public Vector2 GetPosition() => _rb != null ? _rb.position : Vector2.zero;
-        public float GetRotation() => _rb != null ? _rb.rotation : 0f;
-        public float GetSpeed() => _rb != null ? _rb.linearVelocity.magnitude : 0f;
     }
 }

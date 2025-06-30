@@ -7,7 +7,8 @@ namespace Code.App.Presenters
 {
     public class LobbyHUDPresenter : IInitializable, IDisposable
     {
-        private const string GameScene = "GameScene";
+        private const string GAME_SCENE = "GameScene";
+        
         private readonly LobbyHUDView _lobbyHUDView;
         private readonly ISceneLoader _sceneLoader;
 
@@ -29,7 +30,7 @@ namespace Code.App.Presenters
 
         private void LoadGameplayScene()
         {
-            _sceneLoader.LoadScene(GameScene, Dispose);
+            _sceneLoader.LoadScene(GAME_SCENE, Dispose);
         }
     }
 }

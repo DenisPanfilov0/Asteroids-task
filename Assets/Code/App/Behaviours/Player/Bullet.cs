@@ -6,12 +6,13 @@ namespace Code.App.Behaviours.Player
 {
     public class Bullet : MonoBehaviour
     {
-        private int _id;
+        private const float MAX_LIFETIME = 5f;
+        
         private IBulletService _bulletService;
         private Vector2 _direction;
+        private int _id;
         private float _speed;
-        private float _lifetime = 0f;
-        private const float MaxLifetime = 5f;
+        private float _lifetime;
 
         public void Initialize(int id, BulletData bulletData, IBulletService bulletService)
         {
@@ -27,7 +28,7 @@ namespace Code.App.Behaviours.Player
             transform.position = new Vector3(newPosition.x, newPosition.y, transform.position.z);
 
             _lifetime += Time.deltaTime;
-            if (_lifetime >= MaxLifetime)
+            if (_lifetime >= MAX_LIFETIME)
             {
                 DestroySelf();
             }

@@ -1,4 +1,5 @@
 using System;
+using Code.App.Models;
 
 namespace Code.App.Services
 {
@@ -6,7 +7,13 @@ namespace Code.App.Services
     {
         public event Action<int> OnEnemyHitByBullet;
         public event Action<int> OnEnemyHitByLaser;
-        public event Action<int> OnPlayerHit;
+        
+        private readonly IPlayerShipModel _playerShipModel;
+
+        public CollisionService(IPlayerShipModel playerShipModel)
+        {
+            _playerShipModel = playerShipModel;
+        }
 
         public void HandleBulletCollision(int enemyId)
         {
@@ -18,9 +25,9 @@ namespace Code.App.Services
             OnEnemyHitByLaser?.Invoke(enemyId);
         }
 
-        public void HandlePlayerCollision(int enemyId)
+        public void HandlePlayerCollision()
         {
-            OnPlayerHit?.Invoke(enemyId);
+            _playerShipModel.HandlePlayerCollision();
         }
     }
 }

@@ -16,6 +16,7 @@ namespace Code.App.View
             _currentPosition.text = $"x:{position.x:F1} y:{position.y:F1}";
         }
 
+        //TODO (d.p.) Встречал множество мнений, что строку для view должен форматировать Presenter, а сюда отправлять готовую строку?!
         public void SetRotationAngle(float angle)
         {
             _rotationAngle.text = $"{angle:F1}";

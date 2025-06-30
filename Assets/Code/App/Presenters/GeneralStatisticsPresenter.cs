@@ -1,101 +1,42 @@
-using Code.App.Behaviours;
-using Code.App.Behaviours.Player;
-using Code.App.Models.Interfaces;
-using Code.App.Services.Interfaces;
+using System;
+using Code.App.Models;
 using Code.App.View;
+using R3;
 using UnityEngine;
 using Zenject;
 
 namespace Code.App.Presenters
 {
-    public class GeneralStatisticsPresenter : IInitializable
+    public class GeneralStatisticsPresenter : IInitializable, IDisposable
     {
-        private readonly IGameStateModel _gameStateModel;
         private readonly GeneralStatisticsView _view;
-        private readonly PlayerShip _playerShip;
-        private readonly IBulletService _bulletService;
+        private readonly IPlayerShipModel _model;
+        private readonly CompositeDisposable _disposables = new();
 
         public GeneralStatisticsPresenter(
-            IGameStateModel gameStateModel,
             GeneralStatisticsView view,
-            PlayerShip playerShip,
-            IBulletService bulletService)
+            IPlayerShipModel model)
         {
-            _gameStateModel = gameStateModel;
             _view = view;
-            _playerShip = playerShip;
-            _bulletService = bulletService;
+            _model = model;
+            
+            _model.Position.Subscribe(position => _view.SetPosition(position)).AddTo(_disposables);
+            _model.Rotation.Subscribe(rotation => _view.SetRotationAngle(Mathf.Abs(rotation))).AddTo(_disposables);
+            _model.Speed.Subscribe(speed => _view.SetSpeed(speed)).AddTo(_disposables);
+            _model.LaserCharge.Subscribe(laser => _view.SetLaserInfo(laser.charges, laser.progress)).AddTo(_disposables);
         }
 
         public void Initialize()
         {
-            _view.SetPosition(_gameStateModel.GetPosition());
-            _view.SetRotationAngle(Mathf.Abs(_gameStateModel.GetRotation()));
-            _view.SetSpeed(_gameStateModel.GetSpeed());
-            _view.SetLaserInfo(_gameStateModel.GetLaserCharges(), _gameStateModel.GetLaserChargeProgress());
-
-            _playerShip.OnPositionChanged += UpdateModelPosition;
-            _playerShip.OnRotationChanged += UpdateModelRotation;
-            _playerShip.OnSpeedChanged += UpdateModelSpeed;
-            _bulletService.OnLaserChargeChanged += UpdateModelLaserCharge;
-
-            _gameStateModel.OnPositionChanged += UpdateViewPosition;
-            _gameStateModel.OnRotationChanged += UpdateViewRotationAngle;
-            _gameStateModel.OnSpeedChanged += UpdateViewSpeed;
-            _gameStateModel.OnLaserChargeChanged += UpdateViewLaserInfo;
+            _view.SetPosition(_model.Position.Value);
+            _view.SetRotationAngle(Mathf.Abs(_model.Rotation.Value));
+            _view.SetSpeed(_model.Speed.Value);
+            _view.SetLaserInfo(_model.LaserCharge.Value.charges, _model.LaserCharge.Value.progress);
         }
 
-        public void Cleanup()
+        public void Dispose()
         {
-            _playerShip.OnPositionChanged -= UpdateModelPosition;
-            _playerShip.OnRotationChanged -= UpdateModelRotation;
-            _playerShip.OnSpeedChanged -= UpdateModelSpeed;
-            _bulletService.OnLaserChargeChanged -= UpdateModelLaserCharge;
-
-            _gameStateModel.OnPositionChanged -= UpdateViewPosition;
-            _gameStateModel.OnRotationChanged -= UpdateViewRotationAngle;
-            _gameStateModel.OnSpeedChanged -= UpdateViewSpeed;
-            _gameStateModel.OnLaserChargeChanged -= UpdateViewLaserInfo;
-        }
-
-        private void UpdateModelPosition(Vector2 position)
-        {
-            _gameStateModel.SetPosition(position);
-        }
-
-        private void UpdateModelRotation(float rotation)
-        {
-            _gameStateModel.SetRotation(rotation);
-        }
-
-        private void UpdateModelSpeed(float speed)
-        {
-            _gameStateModel.SetSpeed(speed);
-        }
-
-        private void UpdateModelLaserCharge(int charges, float progress)
-        {
-            _gameStateModel.SetLaserCharge(charges, progress);
-        }
-
-        private void UpdateViewPosition(Vector2 position)
-        {
-            _view.SetPosition(position);
-        }
-
-        private void UpdateViewRotationAngle(float rotation)
-        {
-            _view.SetRotationAngle(Mathf.Abs(rotation));
-        }
-
-        private void UpdateViewSpeed(float speed)
-        {
-            _view.SetSpeed(speed);
-        }
-
-        private void UpdateViewLaserInfo(int charges, float progress)
-        {
-            _view.SetLaserInfo(charges, progress);
+            _disposables.Dispose();
         }
     }
 }

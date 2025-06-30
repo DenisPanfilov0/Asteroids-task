@@ -1,35 +1,32 @@
-using Code.App.Behaviours;
-using Code.App.Models.Interfaces;
-using Code.App.Services;
+using System;
+using Code.App.Models;
 using Code.App.View;
+using R3;
+using Zenject;
 
 namespace Code.App.Presenters
 {
-    public class ScoreDisplayPresenter
+    public class ScoreDisplayPresenter : IInitializable, IDisposable
     {
-        private readonly IGameStateModel _gameStateModel;
+        private readonly IPlayerShipModel _playerShipModel;
         private readonly ScoreDisplayView _view;
+        private readonly CompositeDisposable _disposables = new();
 
-        public ScoreDisplayPresenter(IGameStateModel gameStateModel, ScoreDisplayView view)
+        public ScoreDisplayPresenter(IPlayerShipModel playerShipModel, ScoreDisplayView view)
         {
-            _gameStateModel = gameStateModel;
+            _playerShipModel = playerShipModel;
             _view = view;
         }
 
         public void Initialize()
         {
-            _view.SetScore(_gameStateModel.GetScore());
-            _gameStateModel.OnScoreChanged += UpdateScore;
+            _view.SetScore(_playerShipModel.Score.Value);
+            _playerShipModel.Score.Subscribe(score => _view.SetScore(score)).AddTo(_disposables);
         }
 
-        public void Cleanup()
+        public void Dispose()
         {
-            _gameStateModel.OnScoreChanged -= UpdateScore;
-        }
-
-        private void UpdateScore(int score)
-        {
-            _view.SetScore(score);
+            _disposables.Dispose();
         }
     }
 }

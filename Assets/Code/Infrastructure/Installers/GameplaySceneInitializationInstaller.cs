@@ -1,10 +1,12 @@
+using Code.App.Behaviours.Enemy;
 using Code.App.Behaviours.Player;
+using Code.App.Configs;
 using Code.App.Models;
-using Code.App.Models.Interfaces;
 using Code.App.Presenters;
 using Code.App.Services;
 using Code.App.Services.Interfaces;
 using Code.App.View;
+using Code.Infrastructure.WindowsService.Configs;
 using Code.Infrastructure.WindowsService.MVP;
 using UnityEngine;
 using Zenject;
@@ -13,35 +15,73 @@ namespace Code.Infrastructure.Installers
 {
     public class GameplaySceneInitializationInstaller : MonoInstaller
     {
-        [SerializeField] private GeneralStatisticsView generalStatisticsView;
-        [SerializeField] private ScoreDisplayView scoreDisplayView;
-        [SerializeField] private PlayerShip playerShip;
-        [SerializeField] private WindowCreator windowCreator;
-        [SerializeField] private GameLoseWindowView _gameLoseWindowView;
+        [SerializeField] private GeneralStatisticsView _generalStatisticsView;
+        [SerializeField] private ScoreDisplayView _scoreDisplayView;
+        [SerializeField] private PlayerShip _playerShip;
+        [SerializeField] private Camera _mainCamera;
+        
+        [SerializeField] private Transform _uiRoot;
+        [SerializeField] private WindowsConfig _windowsConfig;
+        [SerializeField] private Transform _enemySpawnContainer;
+        [SerializeField] private EnemyConfigList _enemyConfig;
 
         public override void InstallBindings()
         {
-            Container.BindInterfacesAndSelfTo<GeneralStatisticsView>().FromInstance(generalStatisticsView).AsSingle();
-            Container.BindInterfacesAndSelfTo<ScoreDisplayView>().FromInstance(scoreDisplayView).AsSingle();
-            Container.BindInterfacesAndSelfTo<PlayerShip>().FromInstance(playerShip).AsSingle();
-            Container.BindInterfacesAndSelfTo<WindowCreator>().FromInstance(windowCreator).AsSingle();
-            Container.BindInterfacesAndSelfTo<GameLoseWindowView>().FromInstance(_gameLoseWindowView).AsSingle();
+            BindUIObjectAndPrefabs();
+            BindPresenters();
+            BindServices();
+            BindFactory();
+        }
 
+        private void BindUIObjectAndPrefabs()
+        {
+            Container.BindInterfacesAndSelfTo<Camera>().FromInstance(_mainCamera).AsSingle();
+
+            Container.BindInterfacesAndSelfTo<GeneralStatisticsView>()
+                .FromComponentInNewPrefab(_generalStatisticsView)
+                .UnderTransform(_uiRoot)
+                .AsSingle()
+                .NonLazy();
+            
+            Container.BindInterfacesAndSelfTo<ScoreDisplayView>()
+                .FromComponentInNewPrefab(_scoreDisplayView)
+                .UnderTransform(_uiRoot)
+                .AsSingle()
+                .NonLazy();
+            
+            Container.BindInterfacesAndSelfTo<PlayerShip>()
+                .FromComponentInNewPrefab(_playerShip)
+                .AsSingle()
+                .NonLazy();
+        }
+
+        private void BindPresenters()
+        {
             Container.BindInterfacesAndSelfTo<GeneralStatisticsPresenter>().AsSingle().NonLazy();
             Container.BindInterfacesAndSelfTo<ScoreDisplayPresenter>().AsSingle().NonLazy();
-            Container.BindInterfacesAndSelfTo<GameLosePresenter>().AsSingle().NonLazy();
+        }
 
-            Container.BindInterfacesAndSelfTo<UIPresenterInitializer>().AsSingle().NonLazy();
+        private void BindServices()
+        {
+            Container.BindInterfacesAndSelfTo<WindowCreator>().AsCached().WithArguments(_uiRoot, _windowsConfig).NonLazy();
 
-            Container.Bind<IEnemySpawnService>().To<EnemySpawnService>().AsSingle();
-            Container.Bind<IBulletService>().To<BulletService>().AsSingle();
+            Container.BindInterfacesAndSelfTo<EnemySpawnService>().AsSingle().NonLazy();
+            
+            Container.BindInterfacesAndSelfTo<EnemySpawner>().AsSingle()
+                .WithArguments(_enemyConfig, _enemySpawnContainer).NonLazy();
+
+            Container.BindInterfacesAndSelfTo<BulletService>().AsSingle().NonLazy();
+            Container.BindInterfacesAndSelfTo<PlayerShipModel>().AsSingle().NonLazy();
             Container.Bind<ICollisionService>().To<CollisionService>().AsSingle();
-            Container.Bind<IGameStateModel>().To<GameStateModel>().AsSingle();
             Container.Bind<IIdGeneratorService>().To<IdGeneratorService>().AsSingle();
+        }
 
-            var enemySpawnService = Container.Resolve<IEnemySpawnService>();
-            var collisionService = Container.Resolve<ICollisionService>();
-            enemySpawnService.Initialize(collisionService);
+        private void BindFactory()
+        {
+            Container
+                .BindFactory<GameLoseWindowView, GameLosePresenter, GameLosePresenter.Factory>()
+                .AsSingle()
+                .NonLazy();
         }
     }
 }

@@ -4,7 +4,7 @@ namespace Code.App.Extensions
 {
     public static class CameraExtensions
     {
-        public static Bounds GetOrthographicBounds(this Camera camera)
+        public static Bounds GetOrthographicBounds(Camera camera)
         {
             float screenAspect = (float)Screen.width / Screen.height;
             float cameraHeight = camera.orthographicSize * 2;

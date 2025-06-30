@@ -1,4 +1,5 @@
 using Code.App.Behaviours.Player;
+using Code.App.Models;
 using Code.App.Services;
 using UnityEngine;
 
@@ -9,39 +10,26 @@ namespace Code.App.Behaviours.Enemy
     {
         private int _id;
         private ICollisionService _collisionService;
-        private PlayerShip _playerShip;
+        private IPlayerShipModel _playerShipModel;
         private Rigidbody2D _rb;
-        private float _time;
 
-        public void Initialize(int id, Vector2 position, Vector2 direction, float speed, PlayerShip playerShip, ICollisionService collisionService)
+        public void Initialize(int id, Vector2 direction, float speed,
+            ICollisionService collisionService, IPlayerShipModel playerShipModel)
         {
             _id = id;
             _collisionService = collisionService;
-            _playerShip = playerShip;
+            _playerShipModel = playerShipModel;
             _rb = GetComponent<Rigidbody2D>();
-            _rb.gravityScale = 0f;
-            _rb.linearDamping = 0f;
-            _rb.angularDamping = 0f;
-            _rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
-            _rb.position = position;
             _rb.linearVelocity = direction * speed;
-            _time = 0f;
         }
 
         private void Update()
         {
-            Vector2 playerPosition = _playerShip.GetPosition();
+            Vector2 playerPosition = _playerShipModel.GetPosition();
             Vector2 toPlayer = (playerPosition - (Vector2)transform.position).normalized;
             Vector2 forward = toPlayer;
 
-            _time += Time.deltaTime;
-            Vector2 perpendicular = new Vector2(-forward.y, forward.x);
-            float waveAmplitude = 50f;
-            float waveFrequency = 2f;
-            Vector2 wave = perpendicular * Mathf.Sin(_time * waveFrequency) * waveAmplitude;
-            
-            //пытался сделать красивое волновое движени, но не смог
-            _rb.linearVelocity = forward * _rb.linearVelocity.magnitude/* + wave*/;
+            _rb.linearVelocity = forward * _rb.linearVelocity.magnitude;
         }
 
         private void OnTriggerEnter2D(Collider2D other)
@@ -65,7 +53,7 @@ namespace Code.App.Behaviours.Enemy
             }
             else if (other.GetComponent<PlayerShip>())
             {
-                _collisionService.HandlePlayerCollision(_id);
+                _collisionService.HandlePlayerCollision();
             }
         }
     }

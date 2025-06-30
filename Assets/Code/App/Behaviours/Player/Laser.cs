@@ -5,10 +5,11 @@ namespace Code.App.Behaviours.Player
 {
     public class Laser : MonoBehaviour
     {
+        private const float MAX_LIFETIME = 1f;
+        
         private IBulletService _bulletService;
         private int _id;
-        private float _lifetime = 0f;
-        private const float MaxLifetime = 1f;
+        private float _lifetime;
 
         public void Initialize(int id, IBulletService bulletService)
         {
@@ -20,7 +21,7 @@ namespace Code.App.Behaviours.Player
         {
             _lifetime += Time.deltaTime;
             
-            if (_lifetime >= MaxLifetime)
+            if (_lifetime >= MAX_LIFETIME)
             {
                 DestroySelf();
             }

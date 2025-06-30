@@ -11,16 +11,11 @@ namespace Code.App.Behaviours.Enemy
         private ICollisionService _collisionService;
         private Rigidbody2D _rb;
 
-        public void Initialize(int id, Vector2 position, Vector2 direction, float speed, bool isSmallAsteroid, ICollisionService collisionService)
+        public void Initialize(int id, Vector2 direction, float speed, ICollisionService collisionService)
         {
             _id = id;
             _collisionService = collisionService;
             _rb = GetComponent<Rigidbody2D>();
-            _rb.gravityScale = 0f;
-            _rb.linearDamping = 0f;
-            _rb.angularDamping = 0f;
-            _rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
-            _rb.position = position;
             _rb.linearVelocity = direction * speed;
         }
 
@@ -45,7 +40,7 @@ namespace Code.App.Behaviours.Enemy
             }
             else if (other.GetComponent<PlayerShip>())
             {
-                _collisionService.HandlePlayerCollision(_id);
+                _collisionService.HandlePlayerCollision();
             }
         }
     }

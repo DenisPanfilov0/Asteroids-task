@@ -1,18 +1,17 @@
 using System;
+using Code.App.Models;
 using Code.App.Services.Models;
-using Zenject;
 
 namespace Code.App.Services.Interfaces
 {
-    public interface IBulletService : ITickable
+    public interface IBulletService
     {
         void RemoveBullet(int id);
         void RemoveLaser(int id);
         event Action<int, BulletData> OnSpawnBullet;
         event Action<int, LaserData> OnSpawnLaser;
-        event Action<int, float> OnLaserChargeChanged;
         int GetLaserCharges();
         float GetLaserChargeProgress();
-        void CleanUp();
+        void SetPlayerShip(IPlayerShipModel playerShipModel);
     }
 }

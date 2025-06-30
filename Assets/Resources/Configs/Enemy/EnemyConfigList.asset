@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15b64ec3a55c434480167dda5886e698, type: 3}
+  m_Name: EnemyConfigList
+  m_EditorClassIdentifier: 
+  AsteroidPrefab: {fileID: 8261374761108753304, guid: 1cdba957cce3fda4fa86f48cf1fb8da3, type: 3}
+  SmallAsteroidPrefab: {fileID: 9016012845266783178, guid: 7d0730589a73005409b0d24da001c1e0, type: 3}
+  UfoEnemyPrefab: {fileID: 8855640745547560049, guid: aec9782d7b84f6b408763a49b862a422, type: 3}
